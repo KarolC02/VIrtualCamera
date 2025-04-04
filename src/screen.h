@@ -29,7 +29,7 @@ public:
     }
 
     
-    void pixel(vec3 point){
+    void addPixel(vec3 point){
         points.emplace_back(point);
     }
 
@@ -37,7 +37,7 @@ public:
         lines.emplace_back(line);
     }
 
-    void cube(cube cube){
+    void addCube(cube cube){
 
         std::vector<vec3> verts = cube.vertices;
 

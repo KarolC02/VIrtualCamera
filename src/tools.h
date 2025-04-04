@@ -16,3 +16,19 @@ struct line{
 struct cube{
     std::vector<vec3> vertices;
 };
+
+cube makeCube(float size, vec3 center){
+    float x = center.x;
+    float y = center.y;
+    float z = center.z;
+    std::vector<vec3> Verts;
+    Verts.push_back({x -size, y-size, z - size});
+    Verts.push_back({x +size, y-size, z - size});
+    Verts.push_back({x +size, y + size, z - size});
+    Verts.push_back({x -size, y + size, z - size});
+    Verts.push_back({x -size, y-size, z + size});
+    Verts.push_back({x +size, y-size, z + size});
+    Verts.push_back({x + size, y+size, z + size});
+    Verts.push_back({x -size, y+ size, z + size});
+    return cube({Verts});
+}

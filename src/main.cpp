@@ -6,20 +6,19 @@ int main(int argc, char* argv[]) {
     Screen screen;
 
     float size = 10.0f;
-    float centerZ = 20.0f; 
 
-    std::vector<vec3> Verts;
-    Verts.push_back({-size, -size, centerZ - size});
-    Verts.push_back({ size, -size, centerZ - size});
-    Verts.push_back({ size,  size, centerZ - size});
-    Verts.push_back({-size,  size, centerZ - size});
-    Verts.push_back({-size, -size, centerZ + size});
-    Verts.push_back({ size, -size, centerZ + size});
-    Verts.push_back({ size,  size, centerZ + size});
-    Verts.push_back({-size,  size, centerZ + size});
-
-
-    screen.cube(cube{Verts});
+    for( int i = 0; i < 3; i ++ ){
+        for( int j = 0; j < 3; j++ ){
+            for( int k = 0; k < 3; k++ ){
+                float x = 30.0 * i;
+                float y = 30.0 * j;
+                float z = 100 + 30.0 * k;
+                vec3 center = {x,y,z};
+                cube cube1 = makeCube(size,center);
+                screen.addCube(cube1);
+            }
+        }
+    }
 
     // line line1 = {A,B};
     // line line2 = {B,C};

@@ -5,12 +5,12 @@
 
 class Drawer{
 private:
-    Screen &screen;
+    //Screen &screen;
     
 
 public:
-    Drawer(Screen& existingScreen) : screen(existingScreen) {
-    }
+    // Drawer(Screen& existingScreen) : screen(existingScreen) {
+    // }
     
     // void line(vec2 p1, vec2 p2){
 
