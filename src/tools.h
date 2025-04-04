@@ -1,4 +1,12 @@
 #pragma once
-#include "screen.h"
+#include "define.h"
 
-void line(Screen& screen, float x1, float y1, float x2, float y2 )
+struct vec3{
+    float x,y,z;
+};
+
+struct vec2{
+    float x,y;
+};
+
+
