@@ -5,3 +5,4 @@
 #define WINDOW_PLANE 500.0f
 #define DELTA 0.1f
 #define DELTA_THETA 0.0035f
+#define ZOOM_SPEED 0.1f

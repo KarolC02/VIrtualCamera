@@ -136,6 +136,7 @@ public:
     void handleMovement() {
         const float moveSpeed = DELTA;
         const float rotSpeed = DELTA_THETA;
+        const float zoomSpeed = ZOOM_SPEED;
 
         for (auto key : keysPressed) {
             switch (key) {
@@ -177,8 +178,19 @@ public:
                 case SDLK_h:
                     rotateAround(forward, rotSpeed);
                     break;
+                case SDLK_z: 
+                    fov -= zoomSpeed;
+                    if (fov < 10.0f) fov = 10.0f; 
+                    break;
+                case SDLK_x: 
+                    fov += zoomSpeed;
+                    if (fov > 150.0f) fov = 150.0f; 
+                    break;
+    
             }
         }
+
+        
     }
 
     void rotateAround(vec3 axis, float angle) {
