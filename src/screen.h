@@ -17,9 +17,9 @@ class Screen {
     std::vector<line> lines;
     std::vector<cube> cubes;
     vec3 cameraPosition;
+    vec3 forward, right, up;
     std::set<SDL_Keycode> keysPressed; 
     float fov;
-    float rotationX, rotationY, rotationZ;
 
 public:
     Screen() {
@@ -27,7 +27,10 @@ public:
         SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &window, &renderer);
         cameraPosition = {0, 0, 0};
         fov = 90.0f;
-        rotationX = rotationY = rotationZ = 0.0f;
+
+        forward = {0, 0, 1};  
+        right = {1, 0, 0};    
+        up = {0, -1, 0};    
     }
 
     void addPixel(vec3 point) {
@@ -71,7 +74,7 @@ public:
             vec3 p1 = getRelative(line.p1);
             vec3 p2 = getRelative(line.p2);
 
-            if (p1.z <= 0.01f || p2.z <= 0.01f) continue; // skip lines behind camera
+            if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
 
             vec2 sp1 = WorldToScreen(p1);
             vec2 sp2 = WorldToScreen(p2);
@@ -103,29 +106,13 @@ public:
     }
 
     vec3 getRelative(vec3 point) {
-        float x = point.x - cameraPosition.x;
-        float y = point.y - cameraPosition.y;
-        float z = point.z - cameraPosition.z;
+        vec3 relative = point - cameraPosition;
 
-        // Rotate around X axis (pitch)
-        float cosX = cos(rotationX);
-        float sinX = sin(rotationX);
-        float y1 = y * cosX - z * sinX;
-        float z1 = y * sinX + z * cosX;
-
-        // Rotate around Y axis (yaw)
-        float cosY = cos(rotationY);
-        float sinY = sin(rotationY);
-        float x2 = x * cosY + z1 * sinY;
-        float z2 = -x * sinY + z1 * cosY;
-
-        // Rotate around Z axis (roll)
-        float cosZ = cos(rotationZ);
-        float sinZ = sin(rotationZ);
-        float x3 = x2 * cosZ - y1 * sinZ;
-        float y3 = x2 * sinZ + y1 * cosZ;
-
-        return vec3{x3, y3, z2};
+        return {
+            relative.x * right.x + relative.y * right.y + relative.z * right.z,
+            relative.x * up.x + relative.y * up.y + relative.z * up.z,
+            relative.x * forward.x + relative.y * forward.y + relative.z * forward.z
+        };
     }
 
     vec2 WorldToScreen(vec3 relativeV) {
@@ -147,85 +134,67 @@ public:
     }
 
     void handleMovement() {
-
-        float cx = cos(-rotationX);
-        float sx = sin(-rotationX);
-        float cy = cos(-rotationY);
-        float sy = sin(-rotationY);
-        float cz = cos(-rotationZ);
-        float sz = sin(-rotationZ);
-
-        vec3 right = {
-            cy * cz + sx * sy * sz,
-            cx * sz,
-            -sy * cz + sx * cy * sz
-        };
-
-        vec3 down = {
-            -cy * sz + sx * sy * cz,
-            cx * cz,
-            sy * sz + sx * cy * cz
-        };
-
-        vec3 forward = {
-            cx * sy,
-            -sx,
-            cx * cy
-        };
+        const float moveSpeed = DELTA;
+        const float rotSpeed = DELTA_THETA;
 
         for (auto key : keysPressed) {
             switch (key) {
                 case SDLK_w:
-                    cameraPosition.x += forward.x * DELTA;
-                    cameraPosition.y += forward.y * DELTA;
-                    cameraPosition.z += forward.z * DELTA;
+                    cameraPosition = cameraPosition + forward * moveSpeed;
                     break;
                 case SDLK_s:
-                    cameraPosition.x -= forward.x * DELTA;
-                    cameraPosition.y -= forward.y * DELTA;
-                    cameraPosition.z -= forward.z * DELTA;
+                    cameraPosition = cameraPosition - forward * moveSpeed;
                     break;
                 case SDLK_a:
-                    cameraPosition.x -= right.x * DELTA;
-                    cameraPosition.y -= right.y * DELTA;
-                    cameraPosition.z -= right.z * DELTA;
+                    cameraPosition = cameraPosition - right * moveSpeed;
                     break;
                 case SDLK_d:
-                    cameraPosition.x += right.x * DELTA;
-                    cameraPosition.y += right.y * DELTA;
-                    cameraPosition.z += right.z * DELTA;
+                    cameraPosition = cameraPosition + right * moveSpeed;
                     break;
                 case SDLK_SPACE:
-                    cameraPosition.x -= down.x * DELTA;
-                    cameraPosition.y -= down.y * DELTA;
-                    cameraPosition.z -= down.z * DELTA;
+                    cameraPosition = cameraPosition - up * moveSpeed;
                     break;
                 case SDLK_LSHIFT:
                 case SDLK_RSHIFT:
-                    cameraPosition.x += down.x * DELTA;
-                    cameraPosition.y += down.y * DELTA;
-                    cameraPosition.z += down.z * DELTA;
+                    cameraPosition = cameraPosition + up * moveSpeed;
                     break;
 
                 case SDLK_UP:
-                    rotationX -= DELTA_THETA;
+                    rotateAround(right, -rotSpeed);
                     break;
                 case SDLK_DOWN:
-                    rotationX += DELTA_THETA;
+                    rotateAround(right, rotSpeed);
                     break;
                 case SDLK_LEFT:
-                    rotationY += DELTA_THETA;
+                    rotateAround(up, rotSpeed);
                     break;
                 case SDLK_RIGHT:
-                    rotationY -= DELTA_THETA;
+                    rotateAround(up, -rotSpeed);
                     break;
                 case SDLK_g:
-                    rotationZ -= DELTA_THETA;
+                    rotateAround(forward, -rotSpeed);
                     break;
                 case SDLK_h:
-                    rotationZ += DELTA_THETA;
+                    rotateAround(forward, rotSpeed);
                     break;
             }
         }
+    }
+
+    void rotateAround(vec3 axis, float angle) {
+        float c = cos(angle);
+        float s = sin(angle);
+
+        forward = rotateVec(forward, axis, c, s).normalize();
+        right = rotateVec(right, axis, c, s).normalize();
+        up = rotateVec(up, axis, c, s).normalize();
+    }
+
+    vec3 rotateVec(vec3 v, vec3 axis, float c, float s) {
+        return v * c + axis.cross(v) * s + axis * (dot(axis, v)) * (1.0f - c);
+    }
+
+    float dot(vec3 a, vec3 b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 };
