@@ -1,12 +1,11 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <vector>
-#include <stdio.h>
+#include <set>
 #include "define.h"
 #include "tools.h"
+#include <cmath>
 #include <iostream>
-#include <cmath> 
-#include <set>
 
 class Screen {
 
@@ -26,12 +25,12 @@ public:
         cameraPosition = {0, 0, 0};
         fov = 90.0f;
 
-        forward = {0, 0, 1};  
-        right = {1, 0, 0};    
-        up = {0, -1, 0};    
+        forward = {0, 0, 1};
+        right = {1, 0, 0};
+        up = {0, -1, 0};
     }
 
-    void addCube(cube cube) {
+    void addCube(const cube& cube) {
         for (auto& face : cube.faces) {
             faces.emplace_back(face);
         }
@@ -43,7 +42,16 @@ public:
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
         for (auto& face : faces) {
-            for (int i = 0; i < face.vertices.size(); i++ ) {
+            // Correct backface culling
+            vec3 relativeNormal = getRelativeNormal(face.normal);
+            vec3 relativeCenter = getRelative(face.center);
+
+            float facing = dot(relativeNormal, relativeCenter);
+            if (facing >= 0.0f) {
+                continue;
+            }
+
+            for (int i = 0; i < face.vertices.size(); i++) {
                 vec3 currVer = face.vertices.at(i);
                 vec3 nextVer = face.vertices.at((i + 1) % face.vertices.size());
 
@@ -62,7 +70,6 @@ public:
 
         SDL_RenderPresent(renderer);
     }
-
 
     void input() {
         while (SDL_PollEvent(&e)) {
@@ -86,6 +93,14 @@ public:
             relative.x * right.x + relative.y * right.y + relative.z * right.z,
             relative.x * up.x + relative.y * up.y + relative.z * up.z,
             relative.x * forward.x + relative.y * forward.y + relative.z * forward.z
+        };
+    }
+
+    vec3 getRelativeNormal(vec3 normal) {
+        return {
+            normal.x * right.x + normal.y * right.y + normal.z * right.z,
+            normal.x * up.x + normal.y * up.y + normal.z * up.z,
+            normal.x * forward.x + normal.y * forward.y + normal.z * forward.z
         };
     }
 
@@ -133,7 +148,6 @@ public:
                 case SDLK_RSHIFT:
                     cameraPosition = cameraPosition + up * moveSpeed;
                     break;
-
                 case SDLK_UP:
                     rotateAround(right, -rotSpeed);
                     break;
@@ -152,19 +166,16 @@ public:
                 case SDLK_h:
                     rotateAround(forward, rotSpeed);
                     break;
-                case SDLK_z: 
+                case SDLK_z:
                     fov -= zoomSpeed;
-                    if (fov < 10.0f) fov = 10.0f; 
+                    if (fov < 10.0f) fov = 10.0f;
                     break;
-                case SDLK_x: 
+                case SDLK_x:
                     fov += zoomSpeed;
-                    if (fov > 150.0f) fov = 150.0f; 
+                    if (fov > 150.0f) fov = 150.0f;
                     break;
-    
             }
         }
-
-        
     }
 
     void rotateAround(vec3 axis, float angle) {
