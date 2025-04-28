@@ -41,26 +41,68 @@ struct vec2 {
     float x, y;
 };
 
-struct line {
-    vec3 p1, p2;
+struct face {
+    std::vector<vec3> vertices;
+    vec3 normal;
 };
 
 struct cube {
-    std::vector<vec3> vertices;
+    std::vector<face> faces;
 };
 
 cube makeCube(float size, vec3 center) {
     float x = center.x;
     float y = center.y;
     float z = center.z;
+
     std::vector<vec3> Verts;
-    Verts.push_back({x - size, y - size, z - size});
-    Verts.push_back({x + size, y - size, z - size});
-    Verts.push_back({x + size, y + size, z - size});
-    Verts.push_back({x - size, y + size, z - size});
-    Verts.push_back({x - size, y - size, z + size});
-    Verts.push_back({x + size, y - size, z + size});
-    Verts.push_back({x + size, y + size, z + size});
-    Verts.push_back({x - size, y + size, z + size});
-    return cube({Verts});
+    Verts.push_back({x - size, y - size, z - size}); // 0
+    Verts.push_back({x + size, y - size, z - size}); // 1
+    Verts.push_back({x + size, y + size, z - size}); // 2
+    Verts.push_back({x - size, y + size, z - size}); // 3
+    Verts.push_back({x - size, y - size, z + size}); // 4
+    Verts.push_back({x + size, y - size, z + size}); // 5
+    Verts.push_back({x + size, y + size, z + size}); // 6
+    Verts.push_back({x - size, y + size, z + size}); // 7
+
+    std::vector<face> Faces;
+
+    // Bottom face
+    Faces.push_back(face{
+        {Verts[0], Verts[1], Verts[5], Verts[4]},
+        (Verts[1] - Verts[0]).cross(Verts[4] - Verts[0]).normalize()
+    });
+
+    // Top face
+    Faces.push_back(face{
+        {Verts[3], Verts[2], Verts[6], Verts[7]},
+        (Verts[2] - Verts[3]).cross(Verts[7] - Verts[3]).normalize()
+    });
+
+    // Front face
+    Faces.push_back(face{
+        {Verts[0], Verts[4], Verts[7], Verts[3]},
+        (Verts[4] - Verts[0]).cross(Verts[3] - Verts[0]).normalize()
+    });
+
+    // Back face
+    Faces.push_back(face{
+        {Verts[1], Verts[2], Verts[6], Verts[5]},
+        (Verts[2] - Verts[1]).cross(Verts[5] - Verts[1]).normalize()
+    });
+
+    // Left face
+    Faces.push_back(face{
+        {Verts[0], Verts[1], Verts[2], Verts[3]},
+        (Verts[1] - Verts[0]).cross(Verts[3] - Verts[0]).normalize()
+    });
+
+    // Right face
+    Faces.push_back(face{
+        {Verts[4], Verts[5], Verts[6], Verts[7]},
+        (Verts[5] - Verts[4]).cross(Verts[7] - Verts[4]).normalize()
+    });
+
+    return cube{Faces};
 }
+

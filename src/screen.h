@@ -13,9 +13,7 @@ class Screen {
     SDL_Event e;
     SDL_Window* window;
     SDL_Renderer* renderer;
-    std::vector<vec3> points;
-    std::vector<line> lines;
-    std::vector<cube> cubes;
+    std::vector<face> faces;
     vec3 cameraPosition;
     vec3 forward, right, up;
     std::set<SDL_Keycode> keysPressed; 
@@ -33,27 +31,9 @@ public:
         up = {0, -1, 0};    
     }
 
-    void addPixel(vec3 point) {
-        points.emplace_back(point);
-    }
-
-    void addLine(line line) {
-        lines.emplace_back(line);
-    }
-
     void addCube(cube cube) {
-        std::vector<vec3> verts = cube.vertices;
-        if (verts.size() != 8) return;
-
-        cubes.emplace_back(cube);
-        for (int i = 0; i < 3; i++) {
-            lines.emplace_back(line{verts.at(i), verts.at(i + 1)});
-            lines.emplace_back(line{verts.at(i + 4), verts.at(i + 5)});
-        }
-        lines.emplace_back(line{verts.at(3), verts.at(0)});
-        lines.emplace_back(line{verts.at(4), verts.at(7)});
-        for (int i = 0; i < 4; i++) {
-            lines.emplace_back(line{verts.at(i), verts.at(i + 4)});
+        for (auto& face : cube.faces) {
+            faces.emplace_back(face);
         }
     }
 
@@ -62,33 +42,27 @@ public:
         SDL_RenderClear(renderer);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-        for (auto& point : points) {
-            vec3 relative = getRelative(point);
-            if (relative.z <= 0.01f) continue;
-            vec2 screenPoint = WorldToScreen(relative);
-            vec2 canvasPoint = toCanvas(screenPoint);
-            SDL_RenderDrawPointF(renderer, canvasPoint.x, canvasPoint.y);
-        }
+        for (auto& face : faces) {
+            for (int i = 0; i < face.vertices.size(); i++ ) {
+                vec3 currVer = face.vertices.at(i);
+                vec3 nextVer = face.vertices.at((i + 1) % face.vertices.size());
 
-        for (auto& line : lines) {
-            vec3 p1 = getRelative(line.p1);
-            vec3 p2 = getRelative(line.p2);
+                vec3 p1 = getRelative(currVer);
+                vec3 p2 = getRelative(nextVer);
 
-            if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
+                if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
 
-            vec2 sp1 = WorldToScreen(p1);
-            vec2 sp2 = WorldToScreen(p2);
-            vec2 c1 = toCanvas(sp1);
-            vec2 c2 = toCanvas(sp2);
-            SDL_RenderDrawLineF(renderer, c1.x, c1.y, c2.x, c2.y);
+                vec2 sp1 = WorldToScreen(p1);
+                vec2 sp2 = WorldToScreen(p2);
+                vec2 c1 = toCanvas(sp1);
+                vec2 c2 = toCanvas(sp2);
+                SDL_RenderDrawLineF(renderer, c1.x, c1.y, c2.x, c2.y);
+            }
         }
 
         SDL_RenderPresent(renderer);
     }
 
-    void clear() {
-        points.clear();
-    }
 
     void input() {
         while (SDL_PollEvent(&e)) {

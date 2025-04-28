@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
         screen.input();   
         screen.handleMovement();   
         screen.show();  
-        screen.clear();   
     }
 
     return EXIT_SUCCESS;
