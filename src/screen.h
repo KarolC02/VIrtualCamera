@@ -1,21 +1,18 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <vector>
-#include <stdio.h>
+#include <set>
 #include "define.h"
 #include "tools.h"
+#include <cmath>
 #include <iostream>
-#include <cmath> 
-#include <set>
 
 class Screen {
 
     SDL_Event e;
     SDL_Window* window;
     SDL_Renderer* renderer;
-    std::vector<vec3> points;
-    std::vector<line> lines;
-    std::vector<cube> cubes;
+    std::vector<face> faces;
     vec3 cameraPosition;
     vec3 forward, right, up;
     std::set<SDL_Keycode> keysPressed; 
@@ -28,32 +25,14 @@ public:
         cameraPosition = {0, 0, 0};
         fov = 90.0f;
 
-        forward = {0, 0, 1};  
-        right = {1, 0, 0};    
-        up = {0, -1, 0};    
+        forward = {0, 0, 1};
+        right = {1, 0, 0};
+        up = {0, -1, 0};
     }
 
-    void addPixel(vec3 point) {
-        points.emplace_back(point);
-    }
-
-    void addLine(line line) {
-        lines.emplace_back(line);
-    }
-
-    void addCube(cube cube) {
-        std::vector<vec3> verts = cube.vertices;
-        if (verts.size() != 8) return;
-
-        cubes.emplace_back(cube);
-        for (int i = 0; i < 3; i++) {
-            lines.emplace_back(line{verts.at(i), verts.at(i + 1)});
-            lines.emplace_back(line{verts.at(i + 4), verts.at(i + 5)});
-        }
-        lines.emplace_back(line{verts.at(3), verts.at(0)});
-        lines.emplace_back(line{verts.at(4), verts.at(7)});
-        for (int i = 0; i < 4; i++) {
-            lines.emplace_back(line{verts.at(i), verts.at(i + 4)});
+    void addCube(const cube& cube) {
+        for (auto& face : cube.faces) {
+            faces.emplace_back(face);
         }
     }
 
@@ -62,32 +41,34 @@ public:
         SDL_RenderClear(renderer);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-        for (auto& point : points) {
-            vec3 relative = getRelative(point);
-            if (relative.z <= 0.01f) continue;
-            vec2 screenPoint = WorldToScreen(relative);
-            vec2 canvasPoint = toCanvas(screenPoint);
-            SDL_RenderDrawPointF(renderer, canvasPoint.x, canvasPoint.y);
-        }
+        for (auto& face : faces) {
+            // Correct backface culling
+            vec3 relativeNormal = getRelativeNormal(face.normal);
+            vec3 relativeCenter = getRelative(face.center);
 
-        for (auto& line : lines) {
-            vec3 p1 = getRelative(line.p1);
-            vec3 p2 = getRelative(line.p2);
+            float facing = dot(relativeNormal, relativeCenter);
+            if (facing >= 0.0f) {
+                continue;
+            }
 
-            if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
+            for (int i = 0; i < face.vertices.size(); i++) {
+                vec3 currVer = face.vertices.at(i);
+                vec3 nextVer = face.vertices.at((i + 1) % face.vertices.size());
 
-            vec2 sp1 = WorldToScreen(p1);
-            vec2 sp2 = WorldToScreen(p2);
-            vec2 c1 = toCanvas(sp1);
-            vec2 c2 = toCanvas(sp2);
-            SDL_RenderDrawLineF(renderer, c1.x, c1.y, c2.x, c2.y);
+                vec3 p1 = getRelative(currVer);
+                vec3 p2 = getRelative(nextVer);
+
+                if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
+
+                vec2 sp1 = WorldToScreen(p1);
+                vec2 sp2 = WorldToScreen(p2);
+                vec2 c1 = toCanvas(sp1);
+                vec2 c2 = toCanvas(sp2);
+                SDL_RenderDrawLineF(renderer, c1.x, c1.y, c2.x, c2.y);
+            }
         }
 
         SDL_RenderPresent(renderer);
-    }
-
-    void clear() {
-        points.clear();
     }
 
     void input() {
@@ -112,6 +93,14 @@ public:
             relative.x * right.x + relative.y * right.y + relative.z * right.z,
             relative.x * up.x + relative.y * up.y + relative.z * up.z,
             relative.x * forward.x + relative.y * forward.y + relative.z * forward.z
+        };
+    }
+
+    vec3 getRelativeNormal(vec3 normal) {
+        return {
+            normal.x * right.x + normal.y * right.y + normal.z * right.z,
+            normal.x * up.x + normal.y * up.y + normal.z * up.z,
+            normal.x * forward.x + normal.y * forward.y + normal.z * forward.z
         };
     }
 
@@ -159,7 +148,6 @@ public:
                 case SDLK_RSHIFT:
                     cameraPosition = cameraPosition + up * moveSpeed;
                     break;
-
                 case SDLK_UP:
                     rotateAround(right, -rotSpeed);
                     break;
@@ -178,19 +166,16 @@ public:
                 case SDLK_h:
                     rotateAround(forward, rotSpeed);
                     break;
-                case SDLK_z: 
+                case SDLK_z:
                     fov -= zoomSpeed;
-                    if (fov < 10.0f) fov = 10.0f; 
+                    if (fov < 10.0f) fov = 10.0f;
                     break;
-                case SDLK_x: 
+                case SDLK_x:
                     fov += zoomSpeed;
-                    if (fov > 150.0f) fov = 150.0f; 
+                    if (fov > 150.0f) fov = 150.0f;
                     break;
-    
             }
         }
-
-        
     }
 
     void rotateAround(vec3 axis, float angle) {

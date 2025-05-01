@@ -41,26 +41,64 @@ struct vec2 {
     float x, y;
 };
 
-struct line {
-    vec3 p1, p2;
+struct face {
+    std::vector<vec3> vertices;
+    vec3 normal;
+    vec3 center;
 };
 
 struct cube {
-    std::vector<vec3> vertices;
+    std::vector<face> faces;
 };
 
-cube makeCube(float size, vec3 center) {
+inline face makeFace(const std::vector<vec3>& verts) {
+    vec3 normal = (verts[1] - verts[0]).cross(verts[2] - verts[0]).normalize();
+
+    vec3 center = {0, 0, 0};
+    for (auto& v : verts) {
+        center = center + v;
+    }
+    center = center * (1.0f / (float)verts.size());
+
+    return face{verts, normal, center};
+}
+
+inline cube makeCube(float size, vec3 center) {
     float x = center.x;
     float y = center.y;
     float z = center.z;
-    std::vector<vec3> Verts;
-    Verts.push_back({x - size, y - size, z - size});
-    Verts.push_back({x + size, y - size, z - size});
-    Verts.push_back({x + size, y + size, z - size});
-    Verts.push_back({x - size, y + size, z - size});
-    Verts.push_back({x - size, y - size, z + size});
-    Verts.push_back({x + size, y - size, z + size});
-    Verts.push_back({x + size, y + size, z + size});
-    Verts.push_back({x - size, y + size, z + size});
-    return cube({Verts});
+
+    std::vector<vec3> Verts = {
+        {x - size, y - size, z - size}, // 0
+        {x + size, y - size, z - size}, // 1
+        {x + size, y + size, z - size}, // 2
+        {x - size, y + size, z - size}, // 3
+        {x - size, y - size, z + size}, // 4
+        {x + size, y - size, z + size}, // 5
+        {x + size, y + size, z + size}, // 6
+        {x - size, y + size, z + size}  // 7
+    };
+
+    std::vector<face> Faces;
+
+    // Bottom face (y - size) -> order counter-clockwise from below
+    Faces.push_back(makeFace({Verts[0], Verts[1], Verts[5], Verts[4]}));
+
+    // Top face (y + size) -> order counter-clockwise from above
+    Faces.push_back(makeFace({Verts[7], Verts[6], Verts[2], Verts[3]}));
+
+    // Front face (z + size) -> counter-clockwise looking towards positive Z
+    Faces.push_back(makeFace({Verts[4], Verts[5], Verts[6], Verts[7]}));
+
+    // Back face (z - size) -> counter-clockwise looking towards negative Z
+    Faces.push_back(makeFace({Verts[1], Verts[0], Verts[3], Verts[2]}));
+
+    // Left face (x - size) -> counter-clockwise looking towards negative X
+    Faces.push_back(makeFace({Verts[0], Verts[4], Verts[7], Verts[3]}));
+
+    // Right face (x + size) -> counter-clockwise looking towards positive X
+    Faces.push_back(makeFace({Verts[5], Verts[1], Verts[2], Verts[6]}));
+
+    return cube{Faces};
 }
+
