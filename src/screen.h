@@ -2,32 +2,28 @@
 #include <SDL2/SDL.h>
 #include <vector>
 #include <set>
-#include "define.h"
-#include "tools.h"
 #include <cmath>
 #include <iostream>
+#include "define.h"
+#include "tools.h"
+#include "camera.h"
+#include "renderer.h"
 
 class Screen {
-
     SDL_Event e;
     SDL_Window* window;
-    SDL_Renderer* renderer;
+    SDL_Renderer* sdlRenderer;
     std::vector<face> faces;
-    vec3 cameraPosition;
-    vec3 forward, right, up;
     std::set<SDL_Keycode> keysPressed; 
-    float fov;
+    Camera camera;
+    Renderer renderer;
 
 public:
     Screen() {
         SDL_Init(SDL_INIT_VIDEO);
-        SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &window, &renderer);
-        cameraPosition = {0, 0, 0};
-        fov = 90.0f;
-
-        forward = {0, 0, 1};
-        right = {1, 0, 0};
-        up = {0, -1, 0};
+        SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &window, &sdlRenderer);
+        renderer.setSDLRenderer(sdlRenderer);
+        renderer.setCamera(&camera);
     }
 
     void addCube(const cube& cube) {
@@ -37,38 +33,7 @@ public:
     }
 
     void show() {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-
-        for (auto& face : faces) {
-            // Correct backface culling
-            vec3 relativeNormal = getRelativeNormal(face.normal);
-            vec3 relativeCenter = getRelative(face.center);
-
-            float facing = dot(relativeNormal, relativeCenter);
-            if (facing >= 0.0f) {
-                continue;
-            }
-
-            for (int i = 0; i < face.vertices.size(); i++) {
-                vec3 currVer = face.vertices.at(i);
-                vec3 nextVer = face.vertices.at((i + 1) % face.vertices.size());
-
-                vec3 p1 = getRelative(currVer);
-                vec3 p2 = getRelative(nextVer);
-
-                if (p1.z <= 0.01f || p2.z <= 0.01f) continue;
-
-                vec2 sp1 = WorldToScreen(p1);
-                vec2 sp2 = WorldToScreen(p2);
-                vec2 c1 = toCanvas(sp1);
-                vec2 c2 = toCanvas(sp2);
-                SDL_RenderDrawLineF(renderer, c1.x, c1.y, c2.x, c2.y);
-            }
-        }
-
-        SDL_RenderPresent(renderer);
+        renderer.render(faces);
     }
 
     void input() {
@@ -86,112 +51,7 @@ public:
         }
     }
 
-    vec3 getRelative(vec3 point) {
-        vec3 relative = point - cameraPosition;
-
-        return {
-            relative.x * right.x + relative.y * right.y + relative.z * right.z,
-            relative.x * up.x + relative.y * up.y + relative.z * up.z,
-            relative.x * forward.x + relative.y * forward.y + relative.z * forward.z
-        };
-    }
-
-    vec3 getRelativeNormal(vec3 normal) {
-        return {
-            normal.x * right.x + normal.y * right.y + normal.z * right.z,
-            normal.x * up.x + normal.y * up.y + normal.z * up.z,
-            normal.x * forward.x + normal.y * forward.y + normal.z * forward.z
-        };
-    }
-
-    vec2 WorldToScreen(vec3 relativeV) {
-        float d = WINDOW_PLANE;
-        float newX = relativeV.x * d / relativeV.z;
-        float newY = relativeV.y * d / relativeV.z;
-        return vec2({newX, newY});
-    }
-
-    vec2 toCanvas(vec2 v) {
-        float fovRad = fov * (M_PI / 180.0f);
-        float Vw = 2.0f * WINDOW_PLANE * tan(fovRad / 2.0f);
-        float Vh = Vw * (float)HEIGHT / (float)WIDTH;
-
-        vec2 canvasVec;
-        canvasVec.x = v.x * WIDTH / Vw + WIDTH / 2.0f;
-        canvasVec.y = v.y * HEIGHT / Vh + HEIGHT / 2.0f;
-        return canvasVec;
-    }
-
     void handleMovement() {
-        const float moveSpeed = DELTA;
-        const float rotSpeed = DELTA_THETA;
-        const float zoomSpeed = ZOOM_SPEED;
-
-        for (auto key : keysPressed) {
-            switch (key) {
-                case SDLK_w:
-                    cameraPosition = cameraPosition + forward * moveSpeed;
-                    break;
-                case SDLK_s:
-                    cameraPosition = cameraPosition - forward * moveSpeed;
-                    break;
-                case SDLK_a:
-                    cameraPosition = cameraPosition - right * moveSpeed;
-                    break;
-                case SDLK_d:
-                    cameraPosition = cameraPosition + right * moveSpeed;
-                    break;
-                case SDLK_SPACE:
-                    cameraPosition = cameraPosition - up * moveSpeed;
-                    break;
-                case SDLK_LSHIFT:
-                case SDLK_RSHIFT:
-                    cameraPosition = cameraPosition + up * moveSpeed;
-                    break;
-                case SDLK_UP:
-                    rotateAround(right, -rotSpeed);
-                    break;
-                case SDLK_DOWN:
-                    rotateAround(right, rotSpeed);
-                    break;
-                case SDLK_LEFT:
-                    rotateAround(up, rotSpeed);
-                    break;
-                case SDLK_RIGHT:
-                    rotateAround(up, -rotSpeed);
-                    break;
-                case SDLK_g:
-                    rotateAround(forward, -rotSpeed);
-                    break;
-                case SDLK_h:
-                    rotateAround(forward, rotSpeed);
-                    break;
-                case SDLK_z:
-                    fov -= zoomSpeed;
-                    if (fov < 10.0f) fov = 10.0f;
-                    break;
-                case SDLK_x:
-                    fov += zoomSpeed;
-                    if (fov > 150.0f) fov = 150.0f;
-                    break;
-            }
-        }
-    }
-
-    void rotateAround(vec3 axis, float angle) {
-        float c = cos(angle);
-        float s = sin(angle);
-
-        forward = rotateVec(forward, axis, c, s).normalize();
-        right = rotateVec(right, axis, c, s).normalize();
-        up = rotateVec(up, axis, c, s).normalize();
-    }
-
-    vec3 rotateVec(vec3 v, vec3 axis, float c, float s) {
-        return v * c + axis.cross(v) * s + axis * (dot(axis, v)) * (1.0f - c);
-    }
-
-    float dot(vec3 a, vec3 b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
+        camera.handleMovement(keysPressed);
     }
 };
